@@ -24,9 +24,9 @@ def _get_prompt_input_key(inputs: Dict[str, Any], memory_variables: List[str]) -
     # "stop" is a special key that can be passed as input but is not used to
     # format the prompt.
     prompt_input_keys = list(set(inputs).difference(memory_variables + ["stop"]))
-    if len(prompt_input_keys) != 1:
-        raise ValueError(f"One input key expected got {prompt_input_keys}")
-    return prompt_input_keys[0]
+    if len(prompt_input_keys) != 2:
+        raise ValueError(f"Two input keys expected got {prompt_input_keys}")
+    return prompt_input_keys
 
 
 class CombinedMemory(Memory, BaseModel):
@@ -170,13 +170,15 @@ class ConversationSummaryMemory(Memory, BaseModel):
     """Conversation summarizer to memory."""
 
     buffer: str = ""
-    human_prefix: str = "Human"
-    ai_prefix: str = "AI"
+    human_prefix: str = "Student"
+    ai_prefix: str = "Tutor"
+    thought_prefix: str = "Thought"
     """Prefix to use for AI generated responses."""
     llm: BaseLLM
     prompt: BasePromptTemplate = SUMMARY_PROMPT
     memory_key: str = "history"  #: :meta private:
     output_key: Optional[str] = None
+    thought_key: Optional[str] = None
     input_key: Optional[str] = None
 
     @property
@@ -206,9 +208,15 @@ class ConversationSummaryMemory(Memory, BaseModel):
     def save_context(self, inputs: Dict[str, Any], outputs: Dict[str, str]) -> None:
         """Save context from this conversation to buffer."""
         if self.input_key is None:
-            prompt_input_key = _get_prompt_input_key(inputs, self.memory_variables)
+            prompt_input_key = _get_prompt_input_key(inputs, self.memory_variables)[0]
         else:
             prompt_input_key = self.input_key
+
+        if self.thought_key is None:
+            prompt_thought_key = _get_prompt_input_key(inputs, self.memory_variables)[1]
+        else:
+            prompt_thought_key = self.thought_key
+
         if self.output_key is None:
             if len(outputs) != 1:
                 raise ValueError(f"One output key expected, got {outputs.keys()}")
@@ -216,8 +224,9 @@ class ConversationSummaryMemory(Memory, BaseModel):
         else:
             output_key = self.output_key
         human = f"{self.human_prefix}: {inputs[prompt_input_key]}"
+        thought = f"{self.thought_prefix}: {inputs[prompt_thought_key]}"
         ai = f"{self.ai_prefix}: {outputs[output_key]}"
-        new_lines = "\n".join([human, ai])
+        new_lines = "\n".join([human, thought, ai])
         chain = LLMChain(llm=self.llm, prompt=self.prompt)
         self.buffer = chain.predict(summary=self.buffer, new_lines=new_lines)
 
