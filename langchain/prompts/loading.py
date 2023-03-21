@@ -123,6 +123,7 @@ def load_prompt(path: Union[str, Path]) -> BasePromptTemplate:
     ):
         return hub_result
     else:
+        print("expected 1")
         return _load_prompt_from_file(path)
 
 
@@ -130,6 +131,7 @@ def _load_prompt_from_file(file: Union[str, Path]) -> BasePromptTemplate:
     """Load prompt from file."""
     # Convert file to Path object.
     if isinstance(file, str):
+        print("expected 2")
         file_path = Path(file)
     else:
         file_path = file
@@ -140,6 +142,7 @@ def _load_prompt_from_file(file: Union[str, Path]) -> BasePromptTemplate:
     elif file_path.suffix == ".yaml":
         with open(file_path, "r") as f:
             config = yaml.safe_load(f)
+            print(config)
     elif file_path.suffix == ".py":
         spec = importlib.util.spec_from_loader(
             "prompt", loader=None, origin=str(file_path)
